@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 
 const openai = process.env.OPENAI_API_KEY
@@ -7,6 +8,11 @@ const openai = process.env.OPENAI_API_KEY
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId } = auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { interviewType, company, role, jobDescription } = await req.json();
 
     if (!openai) {

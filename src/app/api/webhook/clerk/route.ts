@@ -6,9 +6,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.text();
 
-    // Verify webhook signature if WEBHOOK_SECRET is set
+    // Verify webhook signature — required in production
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
-    if (webhookSecret) {
+    if (!webhookSecret) {
+      console.error("[webhook] CLERK_WEBHOOK_SECRET is not set — rejecting webhook");
+      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+    }
+    {
       const svixId = req.headers.get("svix-id");
       const svixTimestamp = req.headers.get("svix-timestamp");
       const svixSignature = req.headers.get("svix-signature");

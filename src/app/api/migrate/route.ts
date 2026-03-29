@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 // One-time migration endpoint — run once then delete
 // POST /api/migrate
 export async function POST() {
+  const { userId } = auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const results: string[] = [];
 
   const alterStatements = [
@@ -92,11 +98,10 @@ export async function POST() {
     }
   }
 
-  // Seed phone/location for existing users that don't have them
+  // Seed default location for existing users that don't have one
   try {
-    await prisma.$executeRawUnsafe(`UPDATE "User" SET phone = '5015024609' WHERE phone IS NULL`);
-    await prisma.$executeRawUnsafe(`UPDATE "User" SET location = 'California' WHERE location IS NULL`);
-    results.push("SEED: Updated users with phone/location");
+    await prisma.$executeRawUnsafe(`UPDATE "User" SET location = 'United States' WHERE location IS NULL`);
+    results.push("SEED: Updated users with default location");
   } catch (seedErr) {
     results.push(`SEED ERR: ${seedErr instanceof Error ? seedErr.message : String(seedErr)}`);
   }
