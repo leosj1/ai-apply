@@ -1,0 +1,232 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  jobTitle  String?
+  yearsExp  String?
+  linkedIn  String?
+  phone     String?
+  location  String?
+  onboardingComplete Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resumes          Resume[]
+  coverLetters     CoverLetter[]
+  interviewSessions InterviewSession[]
+  jobApplications  JobApplication[]
+  preferences      UserPreferences?
+  notifications    Notification[]
+  gmailToken       GmailToken?
+  emailMessages    EmailMessage[]
+}
+
+model UserPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRoles      String   @default("[]") // JSON array
+  preferredLocations String @default("[]") // JSON array
+  companySizes     String   @default("[]") // JSON array
+  minSalary        String?
+  skills           String   @default("[]") // JSON array of skill strings
+  // Immigration & work authorization
+  immigrationStatus  String?  // us_citizen, green_card, h1b, opt, cpt, ead, tn_visa, l1, o1, other
+  needsSponsorship   Boolean  @default(false)
+  workAuthorization  String?  // authorized, need_sponsorship, student_visa, pending_ead
+  // Career pivot
+  currentRole        String?  // Their actual current role (may differ from target)
+  isPivoting         Boolean  @default(false)
+  pivotFromRole      String?  // e.g. "HR Manager"
+  pivotToRole        String?  // e.g. "Scrum Master"
+  pivotTransferableSkills String? // JSON array of skills that transfer
+  // Job type preferences
+  employmentTypes  String   @default("[\"FULLTIME\"]") // JSON array: FULLTIME, PARTTIME, CONTRACT, INTERN
+  experienceLevel  String?  // intern, entry, mid, senior, lead, principal, executive
+  autoApplyActive  Boolean  @default(false)
+  autoScanActive   Boolean  @default(false)
+  scanInterval     String   @default("daily") // 1min, 5min, 10min, 30min, hourly, daily, weekly
+  scanCredits      Int      @default(50)
+  lastScannedAt    DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Resume {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  template     String   @default("Modern")
+  content      String   @default("") // Full resume text
+  pdfData      String?  // Original uploaded PDF stored as base64
+  pdfMimeType  String?  // MIME type of the uploaded file (application/pdf)
+  atsScore     Int?
+  lastOptimized DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CoverLetter {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String
+  roleName    String
+  tone        String   @default("Professional")
+  content     String   // Generated cover letter text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InterviewSession {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewType String   // behavioral, technical, system-design, case-study
+  company       String?
+  role          String?
+  overallScore  Int?
+  questionsCount Int     @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  answers InterviewAnswer[]
+}
+
+model InterviewAnswer {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question    String
+  answer      String
+  scoreContent   Int?
+  scoreStructure Int?
+  scoreDelivery  Int?
+  strengths      String @default("[]") // JSON array
+  improvements   String @default("[]") // JSON array
+  suggestedAnswer String?
+  createdAt   DateTime @default(now())
+}
+
+model JobApplication {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     String
+  role        String
+  location    String?
+  salary      String?
+  matchScore  Int?
+  status      String   @default("matched") // matched, ready, applied, skipped, rejected, phone_screen, interview, offer
+  appliedAt   DateTime?
+  url         String?
+  tags        String   @default("[]") // JSON array
+  source      String?  // linkedin, indeed, glassdoor, greenhouse, company_site
+  matchBreakdown String? // JSON: {skills, location, salary, experience, overall}
+  jobDescription    String?  // The full JD text
+  tailoredResume    String?  // AI-tailored resume for this specific job
+  generatedCoverLetter String? // AI-generated cover letter for this job
+  notes       String?  // Application proof log, user notes, auto-apply step details
+  proxyEmail  String?  // Plus-addressed email used for this application (e.g. user+google-swe@gmail.com)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  emailMessages EmailMessage[]
+}
+
+model ScrapedJob {
+  id            String   @id @default(cuid())
+  url           String   @unique
+  company       String
+  role          String
+  location      String?
+  salary        String?
+  description   String?  // Full job description text
+  source        String   // linkedin, indeed, glassdoor, greenhouse, lever, ziprecruiter, etc.
+  tags          String   @default("[]") // JSON array of skill tags
+  employmentType String? // FULLTIME, PARTTIME, CONTRACT, INTERN
+  isRemote      Boolean  @default(false)
+  postedAt      DateTime?
+  expiresAt     DateTime?
+  scrapedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  active        Boolean  @default(true) // false if job is no longer available
+
+  @@index([source])
+  @@index([isRemote])
+  @@index([active])
+  @@index([scrapedAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // new_matches, follow_up, status_change, scan_complete
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  metadata  String?  // JSON for extra data
+  createdAt DateTime @default(now())
+}
+
+model GmailToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  email        String   // Gmail address connected
+  historyId    String?  // Gmail push notification history ID for incremental sync
+  lastSyncAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EmailMessage {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobApplicationId String?
+  jobApplication  JobApplication? @relation(fields: [jobApplicationId], references: [id], onDelete: SetNull)
+  gmailMessageId  String?  @unique // Gmail API message ID for dedup
+  threadId        String?  // Gmail thread ID to group conversations
+  direction       String   // inbound, outbound
+  fromEmail       String
+  fromName        String?
+  toEmail         String
+  toName          String?
+  subject         String
+  bodyText        String?  // Plain text body
+  bodyHtml        String?  // HTML body
+  category        String?  // confirmation, interview_invite, rejection, follow_up, offer, general
+  proxyTag        String?  // The plus-address tag used (e.g. "google-swe") for linking
+  isRead          Boolean  @default(false)
+  hasAttachments  Boolean  @default(false)
+  attachments     String?  // JSON array of {filename, mimeType, size, gmailAttachmentId}
+  sentAt          DateTime // When the email was actually sent
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([jobApplicationId])
+  @@index([threadId])
+  @@index([proxyTag])
+  @@index([category])
+}
