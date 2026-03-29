@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Vercel deployment config
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [
